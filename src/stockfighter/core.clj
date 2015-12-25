@@ -1,7 +1,10 @@
 (ns stockfighter.core
   (:require [environ.core :as e]
             [clj-http.client :as client]
-            [cheshire.core :as json]))
+            [cheshire.core :as json]
+            [aleph.http :as http]
+            [manifold.stream :as s]
+            [clojure.core.async :as a]))
 
 (def api-key (e/env :api-key))
 
@@ -40,9 +43,62 @@
         response (client/post uri opts)]
     (get response :body)))
 
+(defn get-quote [venue stock]
+  (let [uri (format "https://api.stockfighter.io/ob/api/venues/%s/stocks/%s/quote" venue stock)
+        response (client/get uri (common-opts))]
+    (get response :body)))
 
+(defn orders-by-account [venue account]
+  (let [uri (format "https://api.stockfighter.io/ob/api/venues/%s/accounts/%s/orders" venue account)
+        response (client/get uri (common-opts))]
+    (get response :body)))
 
-(defn foo
-  "I don't do a whole lot."
-  [x]
-  (println x "Hello, World!"))
+(defn orders-by-stock-and-account [venue account stock]
+  (let [uri (format "https://api.stockfighter.io/ob/api/venues/%s/accounts/%s/stocks/%s/orders"
+                    venue
+                    account
+                    stock)
+        response (client/get uri (common-opts))]
+    (get response :body)))
+
+(defn get-order-status [venue account stock order-id]
+  (let [uri (format "https://api.stockfighter.io/ob/api/venues/%s/stocks/%s/orders/%s"
+                    venue
+                    account
+                    stock
+                    order-id)
+        response (client/get uri (common-opts))]
+    (get response :body)))
+
+(defn cancel-order [venue account stock order-id]
+  (let [uri (format "https://api.stockfighter.io/ob/api/venues/%s/stocks/%s/orders/%s"
+                    venue
+                    account
+                    stock
+                    order-id)
+        response (client/get uri (common-opts))]
+    (get response :body)))
+
+(defn quotes [account venue]
+  (let [uri (format "wss://api.stockfighter.io/ob/api/ws/%s/venues/%s/tickertape" account venue)
+        quotes> (a/chan 1024)]
+    (if-let [socket (try @(http/websocket-client uri)
+                         (catch Exception e (.printStackTrace e)
+                                e))]
+      (do (s/connect socket quotes>)
+          {:chan quotes>
+           :close (delay (.close socket)
+                         (a/close! quotes>))})
+      (println "Nope"))))
+
+(defn fills [account venue]
+  (let [uri (format "wss://api.stockfighter.io/ob/api/ws/%s/venues/%s/executions" account venue)
+        fills> (a/chan 1024)]
+    (if-let [socket (try @(http/websocket-client uri)
+                         (catch Exception e (.printStacktrace e)
+                                e))]
+      (do (println socket)
+          (s/connect socket fills>)
+          {:chan fills>
+           :close (delay (.close socket)
+                         (a/close! fills>))}))))
