@@ -85,7 +85,7 @@
     (if-let [socket (try @(http/websocket-client uri)
                          (catch Exception e (.printStackTrace e)
                                 e))]
-      (do (s/connect socket quotes>)
+      (do (s/connect (s/map json/parse-string  socket) quotes>)
           {:chan quotes>
            :close (delay (.close socket)
                          (a/close! quotes>))})
@@ -98,7 +98,7 @@
                          (catch Exception e (.printStacktrace e)
                                 e))]
       (do (println socket)
-          (s/connect socket fills>)
+          (s/connect (s/map json/parse-string socket) fills>)
           {:chan fills>
            :close (delay (.close socket)
                          (a/close! fills>))}))))
