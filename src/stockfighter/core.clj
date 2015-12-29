@@ -5,9 +5,6 @@
             [manifold.stream :as s]
             [clojure.core.async :as a]))
 
-(defn common-opts []
-  {})
-
 (defmacro def-api-action [name args verb uri opts]
   `(defn ~name
      [~@args]
